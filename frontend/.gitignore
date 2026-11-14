@@ -1,0 +1,38 @@
+# Dependencias - se reinstalan con "npm install"
+node_modules/
+
+# Build generado - se regenera con "npm run build"
+dist/
+dist-ssr/
+
+# Archivos de caché de TypeScript
+tsconfig.tsbuildinfo
+*.tsbuildinfo
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Variables de entorno locales
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Editor
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Sistema operativo
+.DS_Store
+Thumbs.db

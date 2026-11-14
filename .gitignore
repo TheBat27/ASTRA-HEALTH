@@ -1,0 +1,25 @@
+# Dependencias - se reinstalan con "npm install"
+node_modules/
+
+# Build generado
+dist/
+dist-ssr/
+
+# Archivos de caché de TypeScript
+*.tsbuildinfo
+
+# Logs
+*.log
+
+# Variables de entorno locales
+.env
+.env.local
+.env.*.local
+
+# Editor
+.vscode/
+.idea/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
