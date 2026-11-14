@@ -8,11 +8,27 @@
 import type { TelemetryState, Alert, AlertLevel, VitalKey } from '../types';
 import { DEFAULT_THRESHOLDS } from '../data/thresholds';
 
+/** Contador interno para que cada alerta generada tenga un identificador único. */
 let _ruleIdCounter = 0;
+
+/**
+ * Genera un identificador único para una alerta.
+ * Combina la marca de tiempo actual con un contador incremental.
+ * @returns Identificador con el formato `alert_<timestamp>_<contador>`.
+ */
 function makeId(): string {
   return `alert_${Date.now()}_${++_ruleIdCounter}`;
 }
 
+/**
+ * Determina el nivel de alerta de un valor comparándolo con los umbrales del indicador.
+ * Los umbrales críticos tienen prioridad sobre los de advertencia, y cada límite
+ * (alto o bajo) es opcional según el indicador.
+ * @param value Valor actual del indicador.
+ * @param key Indicador a evaluar; se usa para buscar sus umbrales en `DEFAULT_THRESHOLDS`.
+ * @returns `'red'` si supera un umbral crítico, `'yellow'` si supera uno de advertencia
+ * y `'green'` si está dentro del rango normal.
+ */
 function getLevel(value: number, key: VitalKey): AlertLevel {
   const t = DEFAULT_THRESHOLDS[key];
   if (
@@ -26,11 +42,30 @@ function getLevel(value: number, key: VitalKey): AlertLevel {
   return 'green';
 }
 
+/**
+ * Resultado de evaluar una regla.
+ * Si `triggered` es `false`, no hay alerta; si es `true`, `alert` trae los datos
+ * de la alerta sin `id`, `timestamp` ni `status` (los añade `evaluateTelemetry`).
+ */
 export interface RuleResult {
   triggered: boolean;
   alert?: Omit<Alert, 'id' | 'timestamp' | 'status'>;
 }
 
+/**
+ * Evalúa una regla simple de un solo indicador y construye su alerta si hace falta.
+ * Es la base de casi todas las reglas individuales (frecuencia cardíaca, SpO₂, sueño, etc.).
+ * @param key Indicador evaluado.
+ * @param value Valor actual del indicador.
+ * @param vitalName Nombre legible del indicador, para mostrar en la interfaz.
+ * @param unit Unidad del valor (por ejemplo `bpm` o `%`).
+ * @param cmYellow Identificador de la contramedida para el nivel de advertencia.
+ * @param cmRed Identificador de la contramedida para el nivel crítico.
+ * @param reasonFn Función que redacta el motivo de la alerta según el valor y el nivel.
+ * @param recFn Función que redacta la recomendación según el nivel.
+ * @returns Resultado sin alerta si el valor está en verde; en caso contrario, la alerta
+ * con el valor observado, el umbral superado, el motivo, la recomendación y la contramedida.
+ */
 function checkSingle(
   key: VitalKey,
   value: number,
@@ -65,6 +100,13 @@ function checkSingle(
 
 // ── Individual rules ────────────────────────────────────────
 
+/**
+ * Regla 1: frecuencia cardíaca.
+ * Alerta si supera el umbral alto o cae bajo el umbral bajo, en advertencia o crítico.
+ * Contramedidas: `cm_hr_high` (advertencia) y `cm_hr_critical` (crítico).
+ * @param state Estado actual de la telemetría.
+ * @returns Resultado de la regla, con alerta si el valor está fuera de rango.
+ */
 export function ruleHeartRate(state: TelemetryState): RuleResult {
   const v = state.heartRate.current;
   return checkSingle(
@@ -80,6 +122,13 @@ export function ruleHeartRate(state: TelemetryState): RuleResult {
   );
 }
 
+/**
+ * Regla 2: saturación de oxígeno (SpO₂).
+ * Alerta cuando el valor baja de los umbrales de advertencia o crítico.
+ * Contramedidas: `cm_spo2` (advertencia) y `cm_spo2_critical` (crítico).
+ * @param state Estado actual de la telemetría.
+ * @returns Resultado de la regla, con alerta si la saturación es baja.
+ */
 export function ruleSpO2(state: TelemetryState): RuleResult {
   const v = state.spO2.current;
   return checkSingle(
@@ -93,6 +142,12 @@ export function ruleSpO2(state: TelemetryState): RuleResult {
   );
 }
 
+/**
+ * Regla 3: temperatura corporal.
+ * Reutiliza las contramedidas de frecuencia cardíaca (`cm_hr_high` y `cm_hr_critical`).
+ * @param state Estado actual de la telemetría.
+ * @returns Resultado de la regla, con alerta si la temperatura está fuera de rango.
+ */
 export function ruleBodyTemp(state: TelemetryState): RuleResult {
   const v = state.bodyTemp.current;
   return checkSingle(
@@ -106,6 +161,12 @@ export function ruleBodyTemp(state: TelemetryState): RuleResult {
   );
 }
 
+/**
+ * Regla 4: frecuencia respiratoria.
+ * Reutiliza las contramedidas de frecuencia cardíaca (`cm_hr_high` y `cm_hr_critical`).
+ * @param state Estado actual de la telemetría.
+ * @returns Resultado de la regla, con alerta si la frecuencia respiratoria está fuera de rango.
+ */
 export function ruleRespRate(state: TelemetryState): RuleResult {
   const v = state.respRate.current;
   return checkSingle(
@@ -119,6 +180,13 @@ export function ruleRespRate(state: TelemetryState): RuleResult {
   );
 }
 
+/**
+ * Regla 5: horas de sueño.
+ * Alerta cuando las horas dormidas caen bajo los umbrales de advertencia o crítico.
+ * Contramedidas: `cm_sleep` (advertencia) y `cm_sleep_critical` (crítico).
+ * @param state Estado actual de la telemetría.
+ * @returns Resultado de la regla, con alerta si el sueño es insuficiente.
+ */
 export function ruleSleep(state: TelemetryState): RuleResult {
   const v = state.sleepHours.current;
   return checkSingle(
@@ -132,6 +200,12 @@ export function ruleSleep(state: TelemetryState): RuleResult {
   );
 }
 
+/**
+ * Regla 6: fatiga (escala de 0 a 10).
+ * Contramedidas: `cm_fatigue` (advertencia) y `cm_fatigue_critical` (crítico).
+ * @param state Estado actual de la telemetría.
+ * @returns Resultado de la regla, con alerta si la fatiga es alta.
+ */
 export function ruleFatigue(state: TelemetryState): RuleResult {
   const v = state.fatigue.current;
   return checkSingle(
@@ -145,6 +219,12 @@ export function ruleFatigue(state: TelemetryState): RuleResult {
   );
 }
 
+/**
+ * Regla 7: estrés percibido (escala de 0 a 10).
+ * Reutiliza las contramedidas de fatiga (`cm_fatigue` y `cm_fatigue_critical`).
+ * @param state Estado actual de la telemetría.
+ * @returns Resultado de la regla, con alerta si el estrés es alto.
+ */
 export function ruleStress(state: TelemetryState): RuleResult {
   const v = state.stress.current;
   return checkSingle(
@@ -158,6 +238,14 @@ export function ruleStress(state: TelemetryState): RuleResult {
   );
 }
 
+/**
+ * Regla 8 (combinada): radiación espacial.
+ * Evalúa a la vez la tasa de dosis y la dosis acumulada. Si cualquiera de las dos
+ * supera su umbral crítico, la alerta es roja; si solo supera uno de advertencia, es amarilla.
+ * Contramedidas: `cm_radiation` (advertencia) y `cm_radiation_critical` (crítico).
+ * @param state Estado actual de la telemetría.
+ * @returns Resultado de la regla; la alerta cubre los indicadores `radiationRate` y `radiationAccum`.
+ */
 export function ruleRadiation(state: TelemetryState): RuleResult {
   const rate = state.radiationRate.current;
   const accum = state.radiationAccum.current;
@@ -195,6 +283,13 @@ export function ruleRadiation(state: TelemetryState): RuleResult {
   };
 }
 
+/**
+ * Regla 9: CO₂ de cabina.
+ * Alerta cuando la concentración supera los umbrales de advertencia o crítico.
+ * Contramedidas: `cm_co2` (advertencia) y `cm_co2_critical` (crítico).
+ * @param state Estado actual de la telemetría.
+ * @returns Resultado de la regla, con alerta si el CO₂ es elevado.
+ */
 export function ruleCO2(state: TelemetryState): RuleResult {
   const v = state.co2.current;
   return checkSingle(
@@ -208,6 +303,13 @@ export function ruleCO2(state: TelemetryState): RuleResult {
   );
 }
 
+/**
+ * Regla 10 (combinada): fatiga y estrés simultáneos.
+ * Se activa solo cuando AMBOS indicadores superan su umbral de advertencia a la vez.
+ * Siempre genera una alerta de nivel `'yellow'` con la contramedida `cm_fatigue_stress`.
+ * @param state Estado actual de la telemetría.
+ * @returns Resultado de la regla; la alerta cubre los indicadores `fatigue` y `stress`.
+ */
 export function ruleFatigueStress(state: TelemetryState): RuleResult {
   const f = state.fatigue.current;
   const s = state.stress.current;
@@ -236,6 +338,12 @@ export function ruleFatigueStress(state: TelemetryState): RuleResult {
 
 // ── Main evaluation function ────────────────────────────────
 
+/**
+ * Salida del motor tras evaluar la telemetría.
+ * - `overallStatus`: estado general de la misión (el peor nivel entre todos los indicadores).
+ * - `newAlerts`: alertas nuevas que se deben añadir al historial.
+ * - `sensorStatuses`: nivel de alerta por indicador, solo para los que tienen alerta.
+ */
 export interface EngineOutput {
   overallStatus: AlertLevel;
   newAlerts: Alert[];
@@ -245,6 +353,20 @@ export interface EngineOutput {
 /**
  * Evaluate all rules against current telemetry.
  * Deduplicates against existing alerts (same vital + same level in last 2 minutes).
+ *
+ * Funcionamiento paso a paso:
+ * 1. Ejecuta las 10 reglas sobre el estado de telemetría recibido.
+ * 2. Por cada regla disparada, descarta la alerta si ya existe una activa del mismo
+ *    indicador y nivel dentro de la ventana de 2 minutos (deduplicación).
+ * 3. Registra el peor nivel de cada indicador afectado en `sensorStatuses`.
+ * 4. Calcula el estado general (`overallStatus`) recorriendo todos los indicadores.
+ *
+ * Nota: esta función solo crea alertas nuevas. El marcado de alertas como resueltas
+ * cuando el valor se normaliza no ocurre aquí, sino en otra parte de la aplicación.
+ *
+ * @param state Estado actual de la telemetría.
+ * @param existingAlerts Alertas ya registradas, usadas para evitar duplicados.
+ * @returns Estado general, alertas nuevas y estado por indicador.
  */
 export function evaluateTelemetry(
   state: TelemetryState,
