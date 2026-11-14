@@ -35,8 +35,10 @@ mismo indicador y nivel dentro de una ventana de **2 minutos**.
 
 #### Resolución automática
 
-Cuando el valor de un indicador vuelve al rango verde, las alertas activas asociadas
-se marcan automáticamente como `resolved` sin borrar su registro histórico.
+`evaluateTelemetry()` solo genera alertas nuevas; no modifica ni resuelve las
+existentes. El marcado de alertas como `resolved` cuando el valor de un indicador
+vuelve al rango verde se realiza en la capa de estado (`store/`), sin borrar su
+registro histórico.
 
 #### Función auxiliar `getLevel()`
 
