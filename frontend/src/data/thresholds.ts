@@ -98,4 +98,11 @@ export const DEFAULT_THRESHOLDS: ThresholdConfig = {
   radiationAccum: { warnHigh: 50, critHigh: 150 },
 
   /**
-... (8 lines left)
+   * CO₂ de la cabina. Unidad: ppm.
+   * Advertencia: ≥ 2000. Crítico: ≥ 5000. Solo tiene límites altos.
+   * Valores de demostración: los límites operativos reales deben salir de los protocolos de la misión.
+   * Sensor real equivalente: sensor ambiental de CO₂.
+   */
+  // Cabin CO₂ — ppm  (demo values, operational limits must come from mission protocols)
+  co2: { warnHigh: 2000, critHigh: 5000 },
+};
